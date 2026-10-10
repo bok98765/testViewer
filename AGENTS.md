@@ -12,6 +12,18 @@ Win32 + Direct2D + WIC 기반 Windows 이미지 뷰어. C++20, MSVC v143, x64 �
 - `out/`, `vcpkg_installed/`, `.git/` 안은 탐색하지 않는다.
 - 요청받은 범위만 수정한다. 관련 없는 리팩터링, 포맷 변경, 주석 정리는 하지 않는다.
 
+## 멈춤 규칙 (디버깅)
+
+- 같은 문제에 **3번 시도**해도 원인을 못 찾으면 멈추고 사용자에게 보고한다. 방법을 바꿔 가며 계속 시도하지 않는다.
+- 보고 내용: 확인한 사실, 버린 가설, 다음에 필요한 것(재현 방법, 도구, 정보). 5줄 이내.
+- **분석용 도구나 프로그램을 직접 만들지 않는다** (덤프 파서, 재현용 하네스, 프로브 등). 필요한 도구가 없으면 멈추고 설치를 요청한다.
+- 크래시 덤프(`%LOCALAPPDATA%\CrashDumps\Viewer.exe.*.dmp`)는 `cdb`로만 분석한다. `cdb`가 없으면 덤프를 직접 해석하지 말고 멈춘다.
+  ```powershell
+  cdb -z "<덤프 경로>" -y out\x64\Debug -c "!analyze -v; q" > dump.log; Select-String -Path dump.log -Pattern 'Viewer!|ExceptionCode|FAULTING|STACK_TEXT' | Select-Object -First 30 | ForEach-Object { $_.Line }
+  ```
+- GUI 동작에서 생긴 버그는 직접 재현할 수 없다. 재현 절차(연 파일, 누른 키)를 모르면 추측하지 말고 먼저 묻는다.
+- 한 세션이 **20스텝**을 넘으면 진행 상황을 `DEBUG_NOTES.md`에 5줄로 적고, 계속할지 사용자에게 묻는다.
+
 ## 빌드와 테스트
 
 셸은 Windows PowerShell 5.1이다 (`&&` 사용 불가, `;`로 연결).
