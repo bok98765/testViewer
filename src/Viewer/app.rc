@@ -1,0 +1,7 @@
+#include "resource.h"
+
+// Application icon (also used as the window icon via MAKEINTRESOURCEW(100)).
+IDI_APP ICON "..\\..\\assets\\app.ico"
+
+// Embedded application manifest: per-monitor DPI v2, long paths, Win10/11 GUIDs.
+1 24 "..\\..\\assets\\app.manifest"

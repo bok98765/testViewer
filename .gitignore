@@ -1,0 +1,24 @@
+# Build outputs
+x64/
+Debug/
+Release/
+out/
+build/
+
+# Visual Studio
+.vs/
+*.user
+*.suo
+*.opendb
+*.db
+
+# vcpkg
+vcpkg_installed/
+
+# Generated
+*.obj
+*.pdb
+*.ilk
+*.exp
+*.lib
+*.exe
