@@ -1,5 +1,6 @@
 #include "tv/Core.h"
 
+#include <shlobj.h>
 #include <shlwapi.h>
 
 #include <algorithm>

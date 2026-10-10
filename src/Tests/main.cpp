@@ -11,6 +11,7 @@
 #include <vector>
 
 #include <wincodec.h>
+#include <propsys.h>
 
 #include <webp/encode.h>
 
@@ -172,7 +173,7 @@ void testWicRoundTrip() {
 
     const std::filesystem::path tmp = std::filesystem::temp_directory_path();
     for (const auto& c : cases) {
-        const std::filesystem::path file = tmp / (L"tv_roundtrip" + c.ext);
+        const std::filesystem::path file = tmp / (std::wstring(L"tv_roundtrip") + c.ext);
 
         // --- encode with WIC
         {
@@ -186,12 +187,13 @@ void testWicRoundTrip() {
             IWICStream* stream = nullptr;
             IWICBitmapEncoder* encoder = nullptr;
             IWICBitmapFrameEncode* frame = nullptr;
-            IPropertyStore* props = nullptr;
+            IPropertyBag2* props = nullptr;
             bool ok = SUCCEEDED(factory->CreateStream(&stream)) &&
                       SUCCEEDED(stream->InitializeFromFilename(file.c_str(), GENERIC_WRITE)) &&
                       SUCCEEDED(factory->CreateEncoder(c.codec, nullptr, &encoder)) &&
                       SUCCEEDED(encoder->Initialize(stream, WICBitmapEncoderNoCache)) &&
                       SUCCEEDED(encoder->CreateNewFrame(&frame, &props));
+            if (ok) ok = SUCCEEDED(frame->Initialize(props));
             if (ok) {
                 frame->SetSize(w, h);
                 WICPixelFormatGUID fmt = GUID_WICPixelFormat32bppBGRA;

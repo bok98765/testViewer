@@ -2,6 +2,7 @@
 #pragma once
 
 #include <d2d1.h>
+#include <d2d1_1.h>
 #include <wrl/client.h>
 
 #include <condition_variable>

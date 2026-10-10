@@ -31,7 +31,7 @@ MainWindow* FromHwnd(HWND hwnd) {
 // ---------------------------------------------------------------------------
 
 MainWindow* MainWindow::Create(HINSTANCE hinst, const tv::AppSettings& settings) {
-    static bool registered = [] {
+    static bool registered = [hinst] {
         WNDCLASSEXW wc{sizeof(WNDCLASSEXW)};
         wc.style = CS_HREDRAW | CS_VREDRAW | CS_OWNDC;
         wc.lpfnWndProc = WndProc;
@@ -339,7 +339,8 @@ LRESULT MainWindow::onMessage(UINT msg, WPARAM wParam, LPARAM lParam) {
 // ---------------------------------------------------------------------------
 
 bool MainWindow::createDeviceResources() {
-    if (FAILED(D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, &d2dFactory_)))
+    if (FAILED(D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, __uuidof(ID2D1Factory1),
+                                 nullptr, &d2dFactory_)))
         return false;
     if (FAILED(CreateDXGIFactory1(IID_PPV_ARGS(&dxgiFactory_))))
         return false;
@@ -369,7 +370,6 @@ bool MainWindow::createDeviceResources() {
 
     if (FAILED(device_->CreateDeviceContext(D2D1_DEVICE_CONTEXT_OPTIONS_NONE, &dc_)))
         return false;
-    dc_->SetSwapChain(swapchain_.Get());
 
     const float d = dpi();
     dc_->SetDpi(d, d);
@@ -462,8 +462,7 @@ void MainWindow::render() {
     if (showInfo_ && img_) drawInfo();
 
     const HRESULT hr = dc_->EndDraw();
-    if (hr == DXGI_ERROR_DEVICE_REMOVED || hr == DXGI_ERROR_DEVICE_LOST ||
-        hr == D2DERR_RECREATE_TARGET) {
+    if (hr == DXGI_ERROR_DEVICE_REMOVED || hr == D2DERR_RECREATE_TARGET) {
         deviceLost_ = true;
         return;
     }

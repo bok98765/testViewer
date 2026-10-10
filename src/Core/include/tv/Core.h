@@ -1,6 +1,13 @@
 // tv/Core.h - Public API of the TestViewer core library.
 #pragma once
 
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+
 #include <windows.h>
 
 #include <condition_variable>

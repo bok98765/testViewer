@@ -2,6 +2,7 @@
   "$schema": "https://raw.githubusercontent.com/microsoft/vcpkg/master/scripts/vcpkg.schema.json",
   "name": "testviewer",
   "version": "1.0.0",
+  "builtin-baseline": "e456309491fd875487bf02b8a0dca76c1b1b00cc",
   "description": "Fast Windows image viewer (Win32 + Direct2D + WIC)",
   "dependencies": [
     "libwebp"

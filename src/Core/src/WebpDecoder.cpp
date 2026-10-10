@@ -2,6 +2,9 @@
 
 #include <webp/decode.h>
 
+#pragma comment(lib, "libwebp.lib")
+#pragma comment(lib, "libsharpyuv.lib")
+
 #include <algorithm>
 #include <fstream>
 #include <vector>

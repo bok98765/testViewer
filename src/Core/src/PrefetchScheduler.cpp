@@ -107,7 +107,8 @@ void PrefetchScheduler::workerLoop(std::stop_token st) {
         DecodeSettings settings;
         {
             std::unique_lock lock(mu_);
-            cv_.wait(lock, st, [&] { return nextPendingLocked(path); });
+            std::stop_callback stopWake(st, [this] { cv_.notify_all(); });
+            cv_.wait(lock, [&] { return st.stop_requested() || nextPendingLocked(path); });
             if (st.stop_requested()) return;
             inProgress_.insert(path);
             settings = settings_;

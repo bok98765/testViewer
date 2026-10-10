@@ -58,7 +58,8 @@ D2D1_RECT_F Viewport::imageRect(D2D1_SIZE_F client) const {
         {0, 0}, {os.width, 0}, {os.width, os.height}, {0, os.height}};
     float minX = 1e30f, minY = 1e30f, maxX = -1e30f, maxY = -1e30f;
     for (const auto& c : corners) {
-        const D2D1_POINT_2F p = m.TransformPoint(c);
+        const D2D1_POINT_2F p{c.x * m._11 + c.y * m._21 + m._31,
+                              c.x * m._12 + c.y * m._22 + m._32};
         minX = std::min(minX, p.x);
         minY = std::min(minY, p.y);
         maxX = std::max(maxX, p.x);

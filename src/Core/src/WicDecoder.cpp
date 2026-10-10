@@ -1,5 +1,6 @@
 #include "Decoders.h"
 
+#include <ole2.h>
 #include <wincodec.h>
 #include <wrl/client.h>
 
@@ -33,24 +34,31 @@ bool startsWith(const uint8_t* d, size_t len, const char* sig) {
 }
 
 bool readUint(const ComPtr<IWICMetadataQueryReader>& qr, const wchar_t* name, uint32_t& out) {
-    UINT size = 0;
-    if (FAILED(qr->GetMetadataSizeByName(name, &size)) || size == 0 || size > 8)
+    PROPVARIANT var;
+    PropVariantInit(&var);
+    if (FAILED(qr->GetMetadataByName(name, &var)))
         return false;
-    uint8_t buf[8] = {};
-    if (FAILED(qr->GetMetadataValue(name, size, buf)))
-        return false;
-    if (size == 1) out = buf[0];
-    else if (size == 2) out = *reinterpret_cast<uint16_t*>(buf);
-    else if (size == 4) out = *reinterpret_cast<uint32_t*>(buf);
-    else return false;
-    return out >= 1 && out <= 8;
+    bool ok = true;
+    switch (var.vt) {
+        case VT_I2:  out = static_cast<uint32_t>(static_cast<int32_t>(var.iVal)); break;
+        case VT_UI2: out = var.uiVal; break;
+        case VT_I4:  out = static_cast<uint32_t>(static_cast<int32_t>(var.lVal)); break;
+        case VT_UI4: out = var.ulVal; break;
+        default: ok = false; break;
+    }
+    PropVariantClear(&var);
+    return ok && out >= 1 && out <= 8;
 }
 
 bool readDouble(const ComPtr<IWICMetadataQueryReader>& qr, const wchar_t* name, double& out) {
-    UINT size = 0;
-    if (FAILED(qr->GetMetadataSizeByName(name, &size)) || size != sizeof(double))
+    PROPVARIANT var;
+    PropVariantInit(&var);
+    if (FAILED(qr->GetMetadataByName(name, &var)))
         return false;
-    return SUCCEEDED(qr->GetMetadataValue(name, size, &out));
+    const bool ok = var.vt == VT_R8;
+    if (ok) out = var.dblVal;
+    PropVariantClear(&var);
+    return ok;
 }
 
 }  // namespace
@@ -144,7 +152,7 @@ std::optional<DecodedImage> WicDecoder::decode(
         ComPtr<IWICBitmapScaler> scaler;
         if (SUCCEEDED(factory->CreateBitmapScaler(&scaler)) &&
             SUCCEEDED(scaler->Initialize(frame.Get(), nw, nh,
-                                         WICBitmapScalerInterpolationModeLanczos3))) {
+                                         WICBitmapInterpolationModeHighQualityCubic))) {
             source = scaler;
             w = nw;
             h = nh;

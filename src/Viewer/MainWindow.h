@@ -109,8 +109,8 @@ private:
     Microsoft::WRL::ComPtr<IDWriteTextFormat> smallFormat_;
     Microsoft::WRL::ComPtr<IDWriteTextFormat> boldFormat_;
 
-    Viewport vp_;
-    ThumbnailCache thumbs_;
+    tv::Viewport vp_;
+    tv::ThumbnailCache thumbs_;
     bool deviceLost_ = false;
 
     bool fullscreen_ = false;

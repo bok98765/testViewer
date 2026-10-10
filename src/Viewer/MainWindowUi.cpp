@@ -119,7 +119,7 @@ void MainWindow::deleteCurrent() {
         MessageBoxW(hwnd_, L"Failed to delete file.", L"TestViewer", MB_ICONERROR);
         return;
     }
-    op->SetOperations(FOF_ALLOWUNDO | FOF_NOCONFIRMATION | FOF_SILENT | FOF_NOERRORUI);
+    op->SetOperationFlags(FOF_ALLOWUNDO | FOF_NOCONFIRMATION | FOF_SILENT | FOF_NOERRORUI);
 
     ComPtr<IShellItem> item;
     if (FAILED(SHCreateItemFromParsingName(path.c_str(), nullptr, IID_PPV_ARGS(&item)))) {
@@ -312,7 +312,7 @@ void MainWindow::drawFilmstrip() {
         const D2D1_RECT_F cellRect{x, top + 10, x + thumb, top + 10 + thumb};
         ID2D1Bitmap* bmp = thumbs_.getOrRequest(dc_.Get(), files_[static_cast<size_t>(i)]);
         if (bmp) {
-            dc_->DrawImage(bmp, cellRect);
+            dc_->DrawImage(bmp, nullptr, &cellRect);
         } else {
             dc_->CreateSolidColorBrush(D2D1::ColorF(0.15f, 0.15f, 0.15f), &brush_);
             dc_->FillRectangle(cellRect, brush_.Get());

@@ -2,6 +2,7 @@
 
 #include <shellapi.h>
 #include <shellscalingapi.h>
+#include <shobjidl.h>
 #include <windows.h>
 
 #include <algorithm>
@@ -118,7 +119,8 @@ bool ThumbnailCache::loadRaw(const std::filesystem::path& path, Raw& out) const 
     out.stride = static_cast<uint32_t>(w) * 4;
     out.bgra.resize(static_cast<size_t>(out.stride) * h);
 
-    const BOOL ok = GetDIBits(hbmp, 0, static_cast<UINT>(h), out.bgra.data(), &bi, DIB_RGB_COLORS);
+    const BOOL ok = GetDIBits(nullptr, hbmp, 0, static_cast<UINT>(h), out.bgra.data(), &bi,
+                              DIB_RGB_COLORS);
     DeleteObject(hbmp);
     if (!ok) return false;
     out.ready = true;
