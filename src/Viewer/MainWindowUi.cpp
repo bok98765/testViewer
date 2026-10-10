@@ -19,6 +19,7 @@ void MainWindow::openFolder(const std::filesystem::path& dir,
                             const std::filesystem::path* select) {
     folder_ = dir;
     files_ = tv::listImages(dir);
+    thumbs_.clear();
     if (files_.empty()) {
         img_.reset();
         imageBitmap_.Reset();
@@ -294,46 +295,67 @@ void MainWindow::drawFilmstrip() {
     if (!dc_ || files_.empty()) return;
 
     const D2D1_SIZE_F client = clientSize();
-    const float stripH = filmstripHeightDip();
-    const float thumb = 96.0f, gap = 8.0f, cell = thumb + gap;
-    const float top = client.height - stripH;
+    const FilmGeom g = filmGeom();
+    const int n = static_cast<int>(files_.size());
+    const int cur = static_cast<int>(index_);
 
-    dc_->CreateSolidColorBrush(D2D1::ColorF(0.0f, 0.0f, 0.0f, 0.6f), &brush_);
-    dc_->FillRectangle(D2D1_RECT_F{0, top, client.width, client.height}, brush_.Get());
+    if (!stripBgBrush_ &&
+        FAILED(dc_->CreateSolidColorBrush(D2D1::ColorF(0.0f, 0.0f, 0.0f, 0.72f),
+                                          &stripBgBrush_)))
+        return;
+    if (!stripCellBrush_ &&
+        FAILED(dc_->CreateSolidColorBrush(D2D1::ColorF(0.16f, 0.16f, 0.16f),
+                                          &stripCellBrush_)))
+        return;
+    if (!stripSelBrush_ &&
+        FAILED(dc_->CreateSolidColorBrush(D2D1::ColorF(0.30f, 0.65f, 1.0f),
+                                          &stripSelBrush_)))
+        return;
 
-    const float centerX = client.width / 2.0f - thumb / 2.0f;
-    const int firstVisible = static_cast<int>(index_) -
-                             static_cast<int>(client.width / cell) - 1;
-    const int lastVisible = static_cast<int>(index_) +
-                            static_cast<int>(client.width / cell) + 1;
+    dc_->FillRectangle(D2D1_RECT_F{0.0f, g.top, client.width, client.height},
+                       stripBgBrush_.Get());
 
-    for (int i = std::max(0, firstVisible); i <= std::min(static_cast<int>(files_.size()) - 1, lastVisible); ++i) {
-        const float x = centerX + (i - static_cast<int>(index_)) * cell;
-        const D2D1_RECT_F cellRect{x, top + 10, x + thumb, top + 10 + thumb};
+    // Requests are issued nearest-first so the visible area fills in before the
+    // edges of the strip.
+    const auto drawCell = [&](int i) {
+        if (i < 0 || i >= n) return;
+        const float x = g.centerX + (i - cur) * g.cell;
+        if (x + g.thumb < 0.0f || x > client.width) return;
+
+        const float boxTop = g.top + 11.0f;
+        const D2D1_RECT_F box{x, boxTop, x + g.thumb, boxTop + g.thumb};
         ID2D1Bitmap* bmp = thumbs_.getOrRequest(dc_.Get(), files_[static_cast<size_t>(i)]);
         if (bmp) {
-            dc_->DrawImage(bmp, nullptr, &cellRect);
+            const D2D1_SIZE_F s = bmp->GetSize();
+            if (s.width > 0.0f && s.height > 0.0f) {
+                const float sc = std::min(g.thumb / s.width, g.thumb / s.height);
+                const float w = s.width * sc, h = s.height * sc;
+                const D2D1_RECT_F dst{x + (g.thumb - w) * 0.5f,
+                                      boxTop + (g.thumb - h) * 0.5f,
+                                      x + (g.thumb + w) * 0.5f,
+                                      boxTop + (g.thumb + h) * 0.5f};
+                dc_->DrawBitmap(bmp, &dst, 1.0f, D2D1_INTERPOLATION_MODE_LINEAR);
+            }
         } else {
-            dc_->CreateSolidColorBrush(D2D1::ColorF(0.15f, 0.15f, 0.15f), &brush_);
-            dc_->FillRectangle(cellRect, brush_.Get());
+            dc_->FillRectangle(box, stripCellBrush_.Get());
         }
-        if (static_cast<size_t>(i) == index_) {
-            dc_->CreateSolidColorBrush(D2D1::ColorF(0.3f, 0.65f, 1.0f), &brush_);
-            dc_->DrawRectangle(cellRect, brush_.Get(), 2.0f);
-        }
+        if (i == cur) dc_->DrawRectangle(box, stripSelBrush_.Get(), 2.0f);
+    };
+
+    drawCell(cur);
+    const int span = static_cast<int>(client.width / g.cell) + 2;
+    for (int d = 1; d <= span; ++d) {
+        drawCell(cur - d);
+        drawCell(cur + d);
     }
 }
 
 int MainWindow::filmstripIndexAt(D2D1_POINT_2F pt) const {
     if (files_.empty()) return -1;
-    const D2D1_SIZE_F client = clientSize();
-    const float stripH = filmstripHeightDip();
-    if (pt.y < client.height - stripH) return -1;
-    const float thumb = 96.0f, gap = 8.0f, cell = thumb + gap;
-    const float centerX = client.width / 2.0f - thumb / 2.0f;
-    const float rel = pt.x - centerX;
+    const FilmGeom g = filmGeom();
+    if (pt.y < g.top) return -1;
     const long idx = static_cast<long>(index_) +
-                     static_cast<long>(std::lround(rel / cell));
+                     static_cast<long>(std::lround((pt.x - g.centerX) / g.cell));
     if (idx < 0 || idx >= static_cast<long>(files_.size())) return -1;
     return static_cast<int>(idx);
 }

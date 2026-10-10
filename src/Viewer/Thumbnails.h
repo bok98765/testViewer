@@ -1,10 +1,13 @@
 // Filmstrip thumbnails: shell-provided thumbnails decoded on a worker thread.
 #pragma once
 
+#include <windows.h>
+
 #include <d2d1.h>
 #include <d2d1_1.h>
 #include <wrl/client.h>
 
+#include <atomic>
 #include <condition_variable>
 #include <deque>
 #include <filesystem>
@@ -28,6 +31,16 @@ public:
     // Call when the D2D device/rendertarget is recreated.
     void clearBitmaps();
 
+    // Drop every cached thumbnail (new folder).
+    void clear();
+
+    // Posted to `hwnd` with `msg` whenever a thumbnail becomes available, so the
+    // window can repaint. Safe to call from any thread.
+    void setNotifyWindow(HWND hwnd, UINT msg);
+
+    // Shell thumbnail size in physical pixels (DPI aware).
+    void setRequestedSizePx(uint32_t px);
+
 private:
     struct Raw {
         std::vector<uint8_t> bgra;
@@ -42,12 +55,20 @@ private:
 
     void workerLoop(std::stop_token st);
     bool loadRaw(const std::filesystem::path& path, Raw& out) const;
+    void trimLocked();
 
     std::jthread worker_;
     mutable std::mutex mu_;
     std::condition_variable_any cv_;
     std::deque<std::filesystem::path> queue_;
+    std::deque<std::filesystem::path> order_;  // insertion order, for eviction
     std::unordered_map<std::filesystem::path, Entry> entries_;
+
+    HWND notify_ = nullptr;
+    UINT notifyMsg_ = 0;
+    std::atomic<uint32_t> sizePx_{128};
+
+    static constexpr size_t kMaxEntries = 128;
 };
 
 }  // namespace tv

@@ -88,6 +88,7 @@ LRESULT MainWindow::onMessage(UINT msg, WPARAM wParam, LPARAM lParam) {
     switch (msg) {
         case WM_CREATE: {
             DragAcceptFiles(hwnd_, TRUE);
+            thumbs_.setNotifyWindow(hwnd_, kMsgThumbReady);
             if (settings_.darkTitlebar) {
                 const BOOL dark = TRUE;
                 DwmSetWindowAttribute(hwnd_, DWMWA_USE_IMMERSIVE_DARK_MODE, &dark, sizeof(dark));
@@ -142,7 +143,7 @@ LRESULT MainWindow::onMessage(UINT msg, WPARAM wParam, LPARAM lParam) {
             const float d = dpi();
             D2D1_POINT_2F cursor{pt.x * 96.0f / d, pt.y * 96.0f / d};
             const float steps = delta / static_cast<float>(WHEEL_DELTA);
-            vp_.zoomAt(cursor, std::pow(1.25f, steps), clientSize());
+            vp_.zoomAt(cursor, std::pow(1.25f, steps), viewportSize());
             InvalidateRect(hwnd_, nullptr, FALSE);
             return 0;
         }
@@ -212,12 +213,12 @@ LRESULT MainWindow::onMessage(UINT msg, WPARAM wParam, LPARAM lParam) {
                     break;
                 case VK_OEM_PLUS:
                 case VK_ADD:
-                    vp_.zoomAt({clientSize().width / 2, clientSize().height / 2}, 1.25f, clientSize());
+                    vp_.zoomAt({viewportSize().width / 2, viewportSize().height / 2}, 1.25f, viewportSize());
                     InvalidateRect(hwnd_, nullptr, FALSE);
                     break;
                 case VK_OEM_MINUS:
                 case VK_SUBTRACT:
-                    vp_.zoomAt({clientSize().width / 2, clientSize().height / 2}, 0.8f, clientSize());
+                    vp_.zoomAt({viewportSize().width / 2, viewportSize().height / 2}, 0.8f, viewportSize());
                     InvalidateRect(hwnd_, nullptr, FALSE);
                     break;
                 case VK_ESCAPE:
@@ -268,6 +269,10 @@ LRESULT MainWindow::onMessage(UINT msg, WPARAM wParam, LPARAM lParam) {
 
         case WM_TIMER:
             if (wParam == kSlideshowTimer) next();
+            return 0;
+
+        case kMsgThumbReady:
+            if (showFilmstrip_) InvalidateRect(hwnd_, nullptr, FALSE);
             return 0;
 
         case WM_DROPFILES: {
@@ -387,6 +392,7 @@ bool MainWindow::createDeviceResources() {
 
     const float d = dpi();
     dc_->SetDpi(d, d);
+    thumbs_.setRequestedSizePx(static_cast<uint32_t>(kFilmThumbDip * d / 96.0f * 1.33f));
 
     ComPtr<IDXGISurface> surface;
     if (FAILED(swapchain_->GetBuffer(0, IID_PPV_ARGS(&surface)))) return false;
@@ -419,6 +425,9 @@ void MainWindow::releaseDeviceResources() {
     imageBitmap_.Reset();
     target_.Reset();
     brush_.Reset();
+    stripBgBrush_.Reset();
+    stripCellBrush_.Reset();
+    stripSelBrush_.Reset();
     dc_.Reset();
     swapchain_.Reset();
     device_.Reset();
@@ -447,6 +456,8 @@ void MainWindow::resizeSwapChain() {
     }
     const float d = dpi();
     dc_->SetDpi(d, d);
+    thumbs_.setRequestedSizePx(static_cast<uint32_t>(kFilmThumbDip * d / 96.0f * 1.33f));
+
     D2D1_BITMAP_PROPERTIES1 props{
         D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_IGNORE), d, d,
         D2D1_BITMAP_OPTIONS_TARGET | D2D1_BITMAP_OPTIONS_CANNOT_DRAW, nullptr};
@@ -463,12 +474,11 @@ void MainWindow::render() {
 
     dc_->BeginDraw();
 
-    const D2D1_SIZE_F client = clientSize();
     dc_->SetTransform(D2D1::Matrix3x2F::Identity());
     dc_->Clear(D2D1::ColorF(D2D1::ColorF::Black));
 
     if (imageBitmap_) {
-        dc_->SetTransform(vp_.transform(client));
+        dc_->SetTransform(vp_.transform(viewportSize()));
         dc_->DrawBitmap(imageBitmap_.Get(), nullptr, 1.0f,
                        vp_.zoom >= 1.0f ? D2D1_INTERPOLATION_MODE_NEAREST_NEIGHBOR
                                          : D2D1_INTERPOLATION_MODE_LINEAR);
@@ -501,7 +511,7 @@ void MainWindow::loadImage(size_t index) {
 
     if (img_) {
         vp_.natural = img_->size;
-        vp_.fit(clientSize(), !settings_.fitOnOpen);
+        vp_.fit(viewportSize(), !settings_.fitOnOpen);
     } else {
         vp_.natural = {};
     }
@@ -549,6 +559,22 @@ D2D1_SIZE_F MainWindow::clientSize() const {
     const float s = 96.0f / dpi();
     return D2D1_SIZE_F{static_cast<float>(rc.right - rc.left) * s,
                        static_cast<float>(rc.bottom - rc.top) * s};
+}
+
+D2D1_SIZE_F MainWindow::viewportSize() const {
+    const D2D1_SIZE_F c = clientSize();
+    const float h = c.height - filmstripHeightDip();
+    return D2D1_SIZE_F{c.width, h > 0.0f ? h : c.height};
+}
+
+MainWindow::FilmGeom MainWindow::filmGeom() const {
+    const D2D1_SIZE_F c = clientSize();
+    FilmGeom g;
+    g.thumb = kFilmThumbDip;
+    g.cell = kFilmThumbDip + kFilmGapDip;
+    g.top = c.height - kFilmStripDip;
+    g.centerX = c.width / 2.0f - g.thumb / 2.0f;
+    return g;
 }
 
 D2D1_POINT_2F MainWindow::clientPointDip(LPARAM lParam) const {

@@ -56,18 +56,33 @@ private:
     void toggleFullscreen();
     void toggleSlideshow();
     void toggleInfo() { showInfo_ = !showInfo_; settings_.showInfo = showInfo_; InvalidateRect(hwnd_, nullptr, FALSE); }
-    void toggleFilmstrip() { showFilmstrip_ = !showFilmstrip_; settings_.showFilmstrip = showFilmstrip_; InvalidateRect(hwnd_, nullptr, FALSE); }
-    void setFit() { vp_.fit(clientSize()); InvalidateRect(hwnd_, nullptr, FALSE); }
-    void setActualSize() { vp_.fit(clientSize(), true); InvalidateRect(hwnd_, nullptr, FALSE); }
+    void toggleFilmstrip() {
+        showFilmstrip_ = !showFilmstrip_;
+        settings_.showFilmstrip = showFilmstrip_;
+        const float half = kFilmStripDip / 2.0f;
+        vp_.panBy({0.0f, showFilmstrip_ ? half : -half});
+        InvalidateRect(hwnd_, nullptr, FALSE);
+    }
+    void setFit() { vp_.fit(viewportSize()); InvalidateRect(hwnd_, nullptr, FALSE); }
+    void setActualSize() { vp_.fit(viewportSize(), true); InvalidateRect(hwnd_, nullptr, FALSE); }
 
     // --- overlays --------------------------------------------------------------
     void drawInfo();
     void drawFilmstrip();
     int filmstripIndexAt(D2D1_POINT_2F pt) const;
-    float filmstripHeightDip() const { return 118.0f; }
+    float filmstripHeightDip() const { return showFilmstrip_ ? kFilmStripDip : 0.0f; }
+
+    struct FilmGeom {
+        float top = 0.0f;     // strip top edge in DIPs
+        float thumb = 0.0f;   // cell side
+        float cell = 0.0f;    // cell pitch
+        float centerX = 0.0f; // x of the cell for the current index
+    };
+    FilmGeom filmGeom() const;
 
     // --- helpers ---------------------------------------------------------------
     D2D1_SIZE_F clientSize() const;   // client rect in DIPs
+    D2D1_SIZE_F viewportSize() const; // client area left for the image (DIPs)
     D2D1_POINT_2F clientPointDip(LPARAM lParam) const;
     float dpi() const;
     void saveSettings();
@@ -85,6 +100,10 @@ private:
     };
     static constexpr UINT_PTR kSlideshowTimer = 1;
     static constexpr UINT kMsgDragCompleted = WM_APP + 1;
+    static constexpr UINT kMsgThumbReady = WM_APP + 2;
+    static constexpr float kFilmThumbDip = 96.0f;
+    static constexpr float kFilmGapDip = 8.0f;
+    static constexpr float kFilmStripDip = 118.0f;
 
     // --- state -----------------------------------------------------------------
     HWND hwnd_ = nullptr;
@@ -106,6 +125,9 @@ private:
     Microsoft::WRL::ComPtr<ID2D1Bitmap1> target_;
     Microsoft::WRL::ComPtr<ID2D1Bitmap1> imageBitmap_;
     Microsoft::WRL::ComPtr<ID2D1SolidColorBrush> brush_;
+    Microsoft::WRL::ComPtr<ID2D1SolidColorBrush> stripBgBrush_;
+    Microsoft::WRL::ComPtr<ID2D1SolidColorBrush> stripCellBrush_;
+    Microsoft::WRL::ComPtr<ID2D1SolidColorBrush> stripSelBrush_;
     Microsoft::WRL::ComPtr<IDWriteFactory> dwrite_;
     Microsoft::WRL::ComPtr<IDWriteTextFormat> textFormat_;
     Microsoft::WRL::ComPtr<IDWriteTextFormat> smallFormat_;
