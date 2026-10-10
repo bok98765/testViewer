@@ -190,7 +190,9 @@ LRESULT MainWindow::onMessage(UINT msg, WPARAM wParam, LPARAM lParam) {
             return 0;
 
         case WM_RBUTTONUP: {
-            setFit();
+            POINT pt{GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam)};
+            ClientToScreen(hwnd_, &pt);
+            showContextMenu(pt);
             return 0;
         }
 

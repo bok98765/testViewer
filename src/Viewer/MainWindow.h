@@ -65,6 +65,7 @@ private:
     }
     void setFit() { vp_.fit(viewportSize()); InvalidateRect(hwnd_, nullptr, FALSE); }
     void setActualSize() { vp_.fit(viewportSize(), true); InvalidateRect(hwnd_, nullptr, FALSE); }
+    void showContextMenu(POINT screenPt);
 
     // --- overlays --------------------------------------------------------------
     void drawInfo();

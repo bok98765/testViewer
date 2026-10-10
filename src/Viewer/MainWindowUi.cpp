@@ -100,6 +100,28 @@ void MainWindow::toggleSlideshow() {
 }
 
 // ---------------------------------------------------------------------------
+// Right-click context menu
+// ---------------------------------------------------------------------------
+
+void MainWindow::showContextMenu(POINT screenPt) {
+    HMENU menu = CreatePopupMenu();
+    if (!menu) return;
+
+    AppendMenuW(menu, MF_STRING, IDM_VIEW_ROTATE_CW, L"Rotate clockwise\tR");
+    AppendMenuW(menu, MF_STRING, IDM_VIEW_ROTATE_CCW, L"Rotate counterclockwise\tShift+R");
+    AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
+    AppendMenuW(menu, MF_STRING, IDM_VIEW_FIT, L"Fit to window\t0");
+    AppendMenuW(menu, MF_STRING, IDM_VIEW_ACTUAL, L"Actual size\t1");
+
+    // The window must be foreground so the menu dismisses on outside clicks and
+    // the resulting WM_COMMAND reaches this window.
+    SetForegroundWindow(hwnd_);
+    TrackPopupMenu(menu, TPM_TOPALIGN | TPM_LEFTALIGN, screenPt.x, screenPt.y, 0, hwnd_, nullptr);
+    PostMessageW(hwnd_, WM_NULL, 0, 0);
+    DestroyMenu(menu);
+}
+
+// ---------------------------------------------------------------------------
 // Delete (recycle bin)
 // ---------------------------------------------------------------------------
 
