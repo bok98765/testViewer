@@ -16,6 +16,7 @@
 #include <webp/encode.h>
 
 #include "tv/Core.h"
+#include "../Core/src/Decoders.h"
 
 #pragma comment(lib, "ole32.lib")
 #pragma comment(lib, "windowscodecs.lib")
@@ -282,6 +283,60 @@ void testWebpRoundTrip() {
     std::filesystem::remove(file, ec);
 }
 
+// ---------------------------------------------------------------- EXIF orientation
+
+void testExifOrientation() {
+    // 3x2 image where every pixel encodes its own (col, row).
+    const uint32_t w = 3, h = 2;
+    tv::DecodedImage base;
+    base.size = {w, h};
+    base.stride = w * 4;
+    base.pixels.resize(static_cast<size_t>(base.stride) * h);
+    for (uint32_t r = 0; r < h; ++r) {
+        for (uint32_t c = 0; c < w; ++c) {
+            uint8_t* p = base.pixels.data() + r * base.stride + c * 4;
+            p[0] = static_cast<uint8_t>(c);
+            p[1] = static_cast<uint8_t>(r);
+            p[3] = 0xFF;
+        }
+    }
+
+    for (uint32_t o = 1; o <= 8; ++o) {
+        tv::DecodedImage img = base;
+        const tv::Size out = tv::applyExifOrientation(img, o);
+        const bool swap = (o >= 5);
+        const uint32_t dw = swap ? h : w, dh = swap ? w : h;
+        CHECK_EQ(out.width, dw);
+        CHECK_EQ(out.height, dh);
+        CHECK_EQ(img.stride, dw * 4);
+        CHECK_EQ(img.pixels.size(), static_cast<size_t>(dw) * dh * 4);
+
+        bool ok = true;
+        for (uint32_t y = 0; y < dh && ok; ++y) {
+            for (uint32_t x = 0; x < dw; ++x) {
+                uint32_t sc = 0, sr = 0;
+                switch (o) {
+                    case 2: sc = w - 1 - x; sr = y; break;
+                    case 3: sc = w - 1 - x; sr = h - 1 - y; break;
+                    case 4: sc = x; sr = h - 1 - y; break;
+                    case 5: sc = y; sr = x; break;
+                    case 6: sc = y; sr = h - 1 - x; break;
+                    case 7: sc = w - 1 - y; sr = h - 1 - x; break;
+                    case 8: sc = w - 1 - y; sr = x; break;
+                    default: sc = x; sr = y; break;
+                }
+                const uint8_t* p = img.pixels.data() + y * img.stride + x * 4;
+                if (p[0] != sc || p[1] != sr) {
+                    std::printf("FAIL orientation %u at (%u,%u): got (%u,%u) want (%u,%u)\n",
+                                o, x, y, p[0], p[1], sc, sr);
+                    ok = false;
+                }
+            }
+        }
+        CHECK(ok);
+    }
+}
+
 }  // namespace
 
 int wmain(int, wchar_t**) {
@@ -294,6 +349,7 @@ int wmain(int, wchar_t**) {
     testSettingsRoundTrip();
     testWicRoundTrip();
     testWebpRoundTrip();
+    testExifOrientation();
 
     std::printf("%d checks, %d failures\n", g_checks, g_failures);
     CoUninitialize();

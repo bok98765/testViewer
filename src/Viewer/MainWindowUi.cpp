@@ -268,23 +268,23 @@ void MainWindow::drawInfo() {
     auto fill = [&](D2D1_COLOR_F c) {
         dc_->CreateSolidColorBrush(c, &brush_);
     };
-    auto text = [&](IDWriteTextFormat* fmt, const wchar_t* s, D2D1_RECT_F r, D2D1_COLOR_F c) {
+    auto text = [&](IDWriteTextFormat* fmt, const std::wstring& s, D2D1_RECT_F r, D2D1_COLOR_F c) {
         dc_->CreateSolidColorBrush(c, &brush_);
-        dc_->DrawText(s, -1, fmt, r, brush_.Get());
+        dc_->DrawText(s.c_str(), static_cast<UINT>(s.size()), fmt, r, brush_.Get());
     };
 
     fill(D2D1::ColorF(0.0f, 0.0f, 0.0f, 0.55f));
     dc_->FillRectangle(panel, brush_.Get());
 
     const std::wstring name = files_[index_].filename().wstring();
-    text(boldFormat_.Get(), name.c_str(),
+    text(boldFormat_.Get(), name,
          D2D1_RECT_F{panel.left + 10, panel.top + 6, panel.right - 10, panel.top + 34},
          D2D1::ColorF(D2D1::ColorF::White));
     const std::wstring l2 = line2.str(), l3 = line3.str();
-    text(textFormat_.Get(), l2.c_str(),
+    text(textFormat_.Get(), l2,
          D2D1_RECT_F{panel.left + 10, panel.top + 36, panel.right - 10, panel.top + 60},
          D2D1::ColorF(0.85f, 0.85f, 0.85f));
-    text(smallFormat_.Get(), l3.c_str(),
+    text(smallFormat_.Get(), l3,
          D2D1_RECT_F{panel.left + 10, panel.top + 62, panel.right - 10, panel.bottom - 6},
          D2D1::ColorF(0.65f, 0.65f, 0.65f));
     (void)client;

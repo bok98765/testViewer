@@ -210,9 +210,9 @@ Size applyExifOrientation(DecodedImage& img, uint32_t o) {
                 case 3: s = px(w - 1 - x, h - 1 - y); break;      // rotate 180
                 case 4: s = px(x, h - 1 - y); break;              // mirror V
                 case 5: s = px(y, x); break;                      // transpose
-                case 6: s = px(y, w - 1 - x); break;              // rotate 90 CW
-                case 7: s = px(h - 1 - y, w - 1 - x); break;      // transverse
-                case 8: s = px(h - 1 - y, x); break;              // rotate 270 CW
+                case 6: s = px(y, h - 1 - x); break;              // rotate 90 CW
+                case 7: s = px(w - 1 - y, h - 1 - x); break;      // transverse
+                case 8: s = px(w - 1 - y, x); break;              // rotate 270 CW
                 default: s = px(x, y); break;
             }
             std::memcpy(drow + x * 4, s, 4);

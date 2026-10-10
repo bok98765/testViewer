@@ -4,6 +4,7 @@
 #include <windows.h>
 
 #include <d2d1_1.h>
+#include <d3d11.h>
 #include <dwrite_3.h>
 #include <dxgi1_2.h>
 #include <wrl/client.h>
@@ -98,6 +99,7 @@ private:
 
     Microsoft::WRL::ComPtr<ID2D1Factory1> d2dFactory_;
     Microsoft::WRL::ComPtr<IDXGIFactory2> dxgiFactory_;
+    Microsoft::WRL::ComPtr<ID3D11Device> d3d_;
     Microsoft::WRL::ComPtr<IDXGISwapChain1> swapchain_;
     Microsoft::WRL::ComPtr<ID2D1Device> device_;
     Microsoft::WRL::ComPtr<ID2D1DeviceContext> dc_;

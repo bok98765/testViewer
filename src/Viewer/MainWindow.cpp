@@ -11,6 +11,7 @@
 #include "tv/Core.h"
 
 #pragma comment(lib, "d2d1.lib")
+#pragma comment(lib, "d3d11.lib")
 #pragma comment(lib, "dwrite.lib")
 #pragma comment(lib, "dxgi.lib")
 #pragma comment(lib, "dwmapi.lib")
@@ -122,6 +123,7 @@ LRESULT MainWindow::onMessage(UINT msg, WPARAM wParam, LPARAM lParam) {
                     EndPaint(hwnd_, &ps);
                     return 0;
                 }
+                deviceLost_ = false;
                 setCurrentBitmap();
                 thumbs_.clearBitmaps();
             }
@@ -344,11 +346,23 @@ bool MainWindow::createDeviceResources() {
         return false;
     if (FAILED(CreateDXGIFactory1(IID_PPV_ARGS(&dxgiFactory_))))
         return false;
-    if (FAILED(d2dFactory_->CreateDevice(nullptr, &device_)))
+
+    // Direct2D requires a D3D11 device; BGRA support is mandatory for D2D interop.
+    const D3D_FEATURE_LEVEL levels[] = {D3D_FEATURE_LEVEL_11_0, D3D_FEATURE_LEVEL_10_0};
+    if (FAILED(D3D11CreateDevice(nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr,
+                                 D3D11_CREATE_DEVICE_BGRA_SUPPORT, levels,
+                                 ARRAYSIZE(levels), D3D11_SDK_VERSION, &d3d_, nullptr,
+                                 nullptr)) &&
+        FAILED(D3D11CreateDevice(nullptr, D3D_DRIVER_TYPE_WARP, nullptr,
+                                 D3D11_CREATE_DEVICE_BGRA_SUPPORT, levels,
+                                 ARRAYSIZE(levels), D3D11_SDK_VERSION, &d3d_, nullptr,
+                                 nullptr)))
         return false;
 
     ComPtr<IDXGIDevice> dxgiDevice;
-    if (FAILED(device_.As(&dxgiDevice))) return false;
+    if (FAILED(d3d_.As(&dxgiDevice))) return false;
+    if (FAILED(d2dFactory_->CreateDevice(dxgiDevice.Get(), &device_)))
+        return false;
 
     RECT rc{};
     GetClientRect(hwnd_, &rc);
@@ -409,6 +423,7 @@ void MainWindow::releaseDeviceResources() {
     swapchain_.Reset();
     device_.Reset();
     d2dFactory_.Reset();
+    d3d_.Reset();
 }
 
 void MainWindow::resizeSwapChain() {
@@ -446,6 +461,8 @@ void MainWindow::resizeSwapChain() {
 void MainWindow::render() {
     if (!dc_) return;
 
+    dc_->BeginDraw();
+
     const D2D1_SIZE_F client = clientSize();
     dc_->SetTransform(D2D1::Matrix3x2F::Identity());
     dc_->Clear(D2D1::ColorF(D2D1::ColorF::Black));
@@ -462,7 +479,8 @@ void MainWindow::render() {
     if (showInfo_ && img_) drawInfo();
 
     const HRESULT hr = dc_->EndDraw();
-    if (hr == DXGI_ERROR_DEVICE_REMOVED || hr == D2DERR_RECREATE_TARGET) {
+    if (hr == DXGI_ERROR_DEVICE_REMOVED || hr == DXGI_ERROR_DEVICE_RESET ||
+        hr == D2DERR_RECREATE_TARGET) {
         deviceLost_ = true;
         return;
     }
